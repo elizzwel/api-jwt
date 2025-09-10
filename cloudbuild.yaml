@@ -1,0 +1,31 @@
+steps:
+# 1. Build Container Image
+# Langkah ini menjalankan 'docker build' untuk membuat image dari Dockerfile Anda.
+# '$PROJECT_ID' adalah variabel yang disediakan otomatis oleh Cloud Build.
+# '$_SERVICE_NAME' adalah variabel kustom yang akan kita definisikan nanti.
+# '$SHORT_SHA' adalah ID unik dari commit git, bagus untuk versioning.
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/my-app-repo/$_SERVICE_NAME:$SHORT_SHA', '.']
+
+# 2. Push Container Image ke Artifact Registry
+# Langkah ini menjalankan 'docker push' untuk mengunggah image yang sudah di-build.
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/my-app-repo/$_SERVICE_NAME:$SHORT_SHA']
+
+# 3. Deploy ke Cloud Run
+# Langkah ini menjalankan 'gcloud run deploy' menggunakan image yang baru saja di-push.
+# Ia akan membuat revisi baru dari layanan Cloud Run yang sudah ada.
+- name: 'gcr.io/google-appengine/exec-wrapper'
+  args:
+  - '/bin/bash'
+  - '-c'
+  - |
+    gcloud run deploy $_SERVICE_NAME \
+      --image asia-southeast1-docker.pkg.dev/$PROJECT_ID/my-app-repo/$_SERVICE_NAME:$SHORT_SHA \
+      --region asia-southeast1 \
+      --platform managed \
+      --allow-unauthenticated
+
+# Menyimpan image yang baru di-deploy di Artifact Registry
+images:
+- 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/my-app-repo/$_SERVICE_NAME:$SHORT_SHA'
